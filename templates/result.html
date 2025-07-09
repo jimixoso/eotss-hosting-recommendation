@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hosting Recommendation Report - EOTSS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @media print {
+            body { background: white !important; }
+            .no-print { display: none !important; }
+            .print-break { page-break-before: always; }
+            .container { max-width: none !important; margin: 0 !important; padding: 20px !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 flex items-center justify-center">
+    <div class="w-full max-w-3xl bg-white rounded-lg shadow-xl p-8 my-8">
+        <div class="border-b-2 border-blue-800 pb-4 mb-6">
+            <h1 class="text-2xl font-bold text-blue-900 text-center">Hosting Recommendation Report</h1>
+            <p class="text-center text-gray-600 mt-2">Executive Office of Technology Services and Security</p>
+            <p class="text-center text-gray-600">Commonwealth of Massachusetts</p>
+            <p class="text-center text-gray-500 text-sm mt-1">Generated on: <span id="current-date"></span></p>
+        </div>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded p-6 mb-6">
+            <h2 class="text-xl font-bold text-blue-900 mb-4">System Recommendation: <span class="text-blue-800" id="recommendation-text">{{ recommendation|upper }}</span></h2>
+            <div class="mb-4">
+                <span class="font-semibold text-gray-700">Assessment Scores:</span>
+                <ul class="list-disc list-inside ml-4 mt-2">
+                    {% for k, v in scores.items() %}
+                        <li><span class="font-medium">{{ k|replace('_', ' ')|title }}:</span> {{ v }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% if explanations %}
+            <div class="mb-4">
+                <span class="font-semibold text-gray-700">Analysis Summary:</span>
+                <ul class="list-disc list-inside ml-4 mt-2">
+                    {% for reason in explanations %}
+                        <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-blue-900 mb-4 border-l-4 border-blue-800 pl-3">Assessment Responses</h2>
+            <div class="bg-gray-50 border border-gray-200 rounded p-4">
+                <h3 class="font-semibold text-gray-800 mb-2">Section I: Application Requirements</h3>
+                <ul class="list-disc list-inside ml-4 mb-4">
+                    {% for q in questions %}
+                        <li><span class="font-medium">{{ q.prompt }}</span> {{ answers[q.key]|capitalize }}</li>
+                    {% endfor %}
+                </ul>
+                <h3 class="font-semibold text-gray-800 mb-2">Section II: Cloud Readiness</h3>
+                <ul class="list-disc list-inside ml-4">
+                    <li><span class="font-medium">Application Age (determined):</span> {{ answers['app_age']|capitalize }}</li>
+                    {% for q in cloud_questions %}
+                        <li><span class="font-medium">{{ q.prompt }}</span> {{ answers[q.key]|capitalize }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="border-t-2 border-gray-300 pt-6 no-print">
+            <div class="flex gap-4 mb-4">
+                <button id="copy-btn" onclick="copyResults()" class="flex-1 py-3 bg-green-700 text-white font-semibold rounded border-2 border-green-800 hover:bg-green-800 transition">
+                    📋 Copy Results
+                </button>
+                <button onclick="window.print()" class="flex-1 py-3 bg-gray-700 text-white font-semibold rounded border-2 border-gray-800 hover:bg-gray-800 transition">
+                    🖨️ Print Report
+                </button>
+            </div>
+            <form action="/" method="get">
+                <button class="w-full py-3 bg-blue-800 text-white font-semibold rounded border-2 border-blue-900 hover:bg-blue-900 transition" type="submit">Return to Assessment Form</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Set current date
+        document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+        
+        // Copy results to clipboard with legacy fallback
+        function copyResults() {
+            const recommendation = document.getElementById('recommendation-text').textContent;
+            const scores = [];
+            const explanations = [];
+            
+            // Get scores
+            document.querySelectorAll('.bg-blue-50 ul li').forEach(li => {
+                if (li.textContent.includes(':')) {
+                    scores.push(li.textContent.trim());
+                }
+            });
+            
+            // Get explanations
+            document.querySelectorAll('.bg-blue-50 ul li').forEach(li => {
+                if (!li.textContent.includes(':')) {
+                    explanations.push(li.textContent.trim());
+                }
+            });
+            
+            const resultText = `EOTSS Hosting Recommendation Report\n\nSystem Recommendation: ${recommendation}\n\nAssessment Scores:\n${scores.join('\n')}\n\nAnalysis Summary:\n${explanations.join('\n')}\n\nGenerated on: ${new Date().toLocaleDateString()}`;
+            
+            // Try Clipboard API first
+            navigator.clipboard.writeText(resultText).then(() => {
+                showCopySuccess();
+            }).catch(() => {
+                // Legacy fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = resultText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showCopySuccess();
+                    } else {
+                        showCopyFail();
+                    }
+                } catch (err) {
+                    showCopyFail();
+                }
+                document.body.removeChild(textarea);
+            });
+        }
+
+        function showCopySuccess() {
+            const button = document.getElementById('copy-btn');
+            const originalText = button.textContent;
+            button.textContent = '✅ Copied!';
+            button.style.backgroundColor = '#059669';
+            button.style.borderColor = '#047857';
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.style.backgroundColor = '';
+                button.style.borderColor = '';
+            }, 2000);
+        }
+        function showCopyFail() {
+            const button = document.getElementById('copy-btn');
+            const originalText = button.textContent;
+            button.textContent = '❌ Copy Failed';
+            button.style.backgroundColor = '#dc2626';
+            button.style.borderColor = '#b91c1c';
+            setTimeout(() => {
+                button.textContent = originalText;
+                button.style.backgroundColor = '';
+                button.style.borderColor = '';
+            }, 2000);
+        }
+    </script>
+</body>
+</html> 

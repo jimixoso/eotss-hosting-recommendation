@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EOTSS Hosting Recommendation System - Commonwealth of Massachusetts</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 flex items-center justify-center">
+    <div class="w-full max-w-3xl bg-white rounded-lg shadow-xl p-8 my-8">
+        <div class="border-b-2 border-blue-800 pb-4 mb-6">
+            <h1 class="text-2xl font-bold text-red-900 text-center">EOTSS Hosting Recommendation System</h1>
+            <p class="text-center text-gray-600 mt-2">Executive Office of Technology Services and Security</p>
+            <p class="text-center text-gray-600">Commonwealth of Massachusetts</p>
+        </div>
+        
+        <!-- Progress Indicator -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-blue-900">Assessment Progress</span>
+                <span class="text-sm text-gray-600" id="progress-text">Section 1 of 2</span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2">
+                <div class="bg-blue-600 h-2 rounded-full transition-all duration-300" id="progress-bar" style="width: 50%"></div>
+            </div>
+        </div>
+
+        {% if error %}
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">{{ error }}</div>
+        {% endif %}
+        
+        <form method="post" id="assessment-form">
+            <div class="mb-8" id="section-1">
+                <h2 class="text-lg font-semibold text-blue-900 mb-4 border-l-4 border-blue-800 pl-3">Section I: Application Requirements Assessment</h2>
+                <div class="space-y-4">
+                {% for q in questions %}
+                    <div class="border border-gray-200 rounded p-4 bg-gray-50">
+                        <label for="{{ q.key }}" class="block font-semibold text-gray-800 mb-2">{{ q.prompt }}</label>
+                        <select name="{{ q.key }}" id="{{ q.key }}" class="form-select w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Please Select an Option --</option>
+                            {% for opt in q.options %}
+                                <option value="{{ opt }}" {% if answers[q.key]==opt %}selected{% endif %}>{{ opt|capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-sm text-gray-600 mt-1 italic">{{ q.help }}</p>
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+            <div class="mb-8" id="section-2">
+                <h2 class="text-lg font-semibold text-blue-900 mb-4 border-l-4 border-blue-800 pl-3">Section II: Cloud Readiness Evaluation</h2>
+                <div class="space-y-4">
+                {% for q in cloud_questions %}
+                    <div class="border border-gray-200 rounded p-4 bg-gray-50">
+                        <label for="{{ q.key }}" class="block font-semibold text-gray-800 mb-2">{{ q.prompt }}</label>
+                        <select name="{{ q.key }}" id="{{ q.key }}" class="form-select w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">-- Please Select an Option --</option>
+                            {% for opt in q.options %}
+                                <option value="{{ opt }}" {% if answers[q.key]==opt %}selected{% endif %}>{{ opt|capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-sm text-gray-600 mt-1 italic">{{ q.help }}</p>
+                    </div>
+                {% endfor %}
+                </div>
+            </div>
+            <div class="border-t-2 border-gray-300 pt-6">
+                <button type="submit" class="w-full py-3 bg-blue-800 text-white font-semibold rounded border-2 border-blue-900 hover:bg-blue-900 transition">Submit for Analysis</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // Update progress bar and text
+        function updateProgress() {
+            const selects = document.querySelectorAll('.form-select');
+            const totalQuestions = selects.length;
+            const answeredQuestions = Array.from(selects).filter(select => select.value !== '').length;
+            const progressPercentage = (answeredQuestions / totalQuestions) * 100;
+            
+            document.getElementById('progress-bar').style.width = progressPercentage + '%';
+            
+            if (answeredQuestions <= totalQuestions / 2) {
+                document.getElementById('progress-text').textContent = 'Section 1 of 2';
+            } else {
+                document.getElementById('progress-text').textContent = 'Section 2 of 2';
+            }
+        }
+        
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            updateProgress();
+            
+            // Update progress when any select changes
+            const selects = document.querySelectorAll('.form-select');
+            selects.forEach(select => {
+                select.addEventListener('change', function() {
+                    updateProgress();
+                });
+            });
+        });
+    </script>
+</body>
+</html> 
