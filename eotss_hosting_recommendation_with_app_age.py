@@ -3,7 +3,8 @@ import argparse
 import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 
-# Define questions and valid options
+# QUESTIONS: Main assessment questions for application requirements.
+# Each question is a dict with a key, prompt, valid options, and a help string for user guidance.
 QUESTIONS = [
     {"key": "fault_tolerance", "prompt": "Fault Tolerance (Low/Moderate/High): ", "options": ["low", "moderate", "high"], "help": "High = must always be available (e.g., 24/7 critical), Moderate = some downtime acceptable, Low = downtime is fine"},
     {"key": "latency", "prompt": "Latency Sensitivity (Low/Moderate/High): ", "options": ["low", "moderate", "high"], "help": "High = needs instant response (e.g., real-time), Moderate = some delay is ok, Low = delay is fine"},
@@ -16,6 +17,8 @@ QUESTIONS = [
     {"key": "scalability", "prompt": "Do you expect rapid growth or fluctuating workloads (yes/no)? ", "options": ["yes", "no"], "help": "Yes = user base or data may grow quickly or unpredictably"},
 ]
 
+# CLOUD_READINESS_QUESTIONS: Questions to assess the application's cloud readiness.
+# Used to determine if the app is 'modern' or 'legacy' for scoring purposes.
 CLOUD_READINESS_QUESTIONS = [
     {"key": "containerized", "prompt": "Is the app containerized or able to be containerized (e.g., Docker)? ", "options": ["yes", "no"], "help": "Yes = can run in Docker or similar, No = needs special hardware or OS"},
     {"key": "compatible_runtime", "prompt": "Does the app run on a cloud-supported OS/runtime (e.g., modern Linux, Windows Server 2016+)? ", "options": ["yes", "no"], "help": "Yes = runs on modern Linux/Windows, No = needs legacy OS"},
@@ -24,6 +27,14 @@ CLOUD_READINESS_QUESTIONS = [
 
 
 def get_valid_input(prompt, valid_options):
+    """
+    Prompt the user for input until a valid option is entered.
+    Args:
+        prompt (str): The prompt to display to the user.
+        valid_options (list): List of valid string options (lowercase).
+    Returns:
+        str: The valid input entered by the user (lowercase).
+    """
     while True:
         value = input(prompt).strip().lower()
         if value in valid_options:
@@ -32,16 +43,25 @@ def get_valid_input(prompt, valid_options):
 
 
 def parse_args():
+    """
+    Parse command-line arguments for the hosting recommendation tool.
+    Returns:
+        argparse.Namespace: Parsed arguments object.
+    """
     parser = argparse.ArgumentParser(description="EOTSS Hosting Recommendation System")
-    parser.add_argument('--gui', action='store_true', help='Launch the GUI version')
     for q in QUESTIONS:
         parser.add_argument(f'--{q["key"]}', type=str, choices=q["options"], help=q["help"])
     for q in CLOUD_READINESS_QUESTIONS:
         parser.add_argument(f'--{q["key"]}', type=str, choices=q["options"], help=q["help"])
+    parser.add_argument('--gui', action='store_true', help='Launch the GUI version')
     return parser.parse_args()
 
 
 def recommend_hosting():
+    """
+    Run the CLI version of the EOTSS Hosting Recommendation System.
+    Prompts the user for answers, processes them, and displays the recommendation.
+    """
     print("=== EOTSS Hosting Recommendation System ===")
 
     # Parse command-line arguments
@@ -254,6 +274,10 @@ def recommend_hosting():
         print(f"Results saved to {filename}")
 
 def run_gui():
+    """
+    Launch the Tkinter GUI version of the EOTSS Hosting Recommendation System.
+    Presents the questions in a graphical form and displays the recommendation.
+    """
     root = tk.Tk()
     root.title("EOTSS Hosting Recommendation System")
     root.minsize(600, 600)
@@ -331,6 +355,12 @@ def run_gui():
     submit_btn.grid(row=3, column=0, columnspan=2, pady=(10, 0))
 
     def on_submit(entries, result_box):
+        """
+        Handle the form submission in the GUI, validate input, compute the recommendation, and display results.
+        Args:
+            entries (dict): Mapping of question keys to Tkinter StringVar objects.
+            result_box (tkinter widget): The text box to display results.
+        """
         answers = {k: v.get() for k, v in entries.items()}
         # Validate all fields
         for q in QUESTIONS + CLOUD_READINESS_QUESTIONS:

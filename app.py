@@ -2,6 +2,8 @@ from flask import Flask, render_template, request
 
 app = Flask(__name__)
 
+# QUESTIONS: Main assessment questions for application requirements.
+# Each question is a dict with a key, prompt, valid options, and a help string for user guidance.
 QUESTIONS = [
     {"key": "fault_tolerance", "prompt": "Fault Tolerance (Low/Moderate/High):", "options": ["low", "moderate", "high"], "help": "High = must always be available (e.g., 24/7 critical), Moderate = some downtime acceptable, Low = downtime is fine"},
     {"key": "latency", "prompt": "Latency Sensitivity (Low/Moderate/High):", "options": ["low", "moderate", "high"], "help": "High = needs instant response (e.g., real-time), Moderate = some delay is ok, Low = delay is fine"},
@@ -14,6 +16,8 @@ QUESTIONS = [
     {"key": "scalability", "prompt": "Do you expect rapid growth or fluctuating workloads (yes/no)?", "options": ["yes", "no"], "help": "Yes = user base or data may grow quickly or unpredictably"},
 ]
 
+# CLOUD_READINESS_QUESTIONS: Questions to assess the application's cloud readiness.
+# Used to determine if the app is 'modern' or 'legacy' for scoring purposes.
 CLOUD_READINESS_QUESTIONS = [
     {"key": "containerized", "prompt": "Is the app containerized or able to be containerized (e.g., Docker)?", "options": ["yes", "no"], "help": "Yes = can run in Docker or similar, No = needs special hardware or OS"},
     {"key": "compatible_runtime", "prompt": "Does the app run on a cloud-supported OS/runtime (e.g., modern Linux, Windows Server 2016+)?", "options": ["yes", "no"], "help": "Yes = runs on modern Linux/Windows, No = needs legacy OS"},
@@ -21,6 +25,13 @@ CLOUD_READINESS_QUESTIONS = [
 ]
 
 def score_answers(answers):
+    """
+    Calculate the hosting recommendation based on user answers.
+    Args:
+        answers (dict): Dictionary of answers to all questions.
+    Returns:
+        tuple: (recommendation (str), scores (dict), explanations (list of str))
+    """
     cloud_ready_score = sum(1 for q in CLOUD_READINESS_QUESTIONS if answers.get(q["key"]) == "yes")
     app_age = "modern" if cloud_ready_score >= 2 else "legacy"
     answers["app_age"] = app_age
@@ -79,6 +90,11 @@ def score_answers(answers):
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    """
+    Main route for the web app. Handles both GET (show form) and POST (process form) requests.
+    Returns:
+        str: Rendered HTML for the form or results page.
+    """
     if request.method == 'POST':
         answers = {q['key']: request.form.get(q['key'], '') for q in QUESTIONS + CLOUD_READINESS_QUESTIONS}
         # Validate all fields
