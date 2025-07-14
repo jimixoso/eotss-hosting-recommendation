@@ -25,6 +25,32 @@ CLOUD_READINESS_QUESTIONS = [
     {"key": "no_hardware_deps", "prompt": "Does the app avoid relying on physical hardware or specialized networking? ", "options": ["yes", "no"], "help": "Yes = no special cards/devices, No = needs hardware access"},
 ]
 
+def get_migration_complexity(answers):
+    """
+    Determine migration complexity based on sub-question answers.
+    Returns: 'low', 'moderate', or 'high'.
+    """
+    score = 0
+    if answers.get("custom_hardware") == "yes":
+        score += 2
+    if answers.get("legacy_software") == "yes":
+        score += 2
+    if answers.get("large_data") == "yes":
+        score += 1
+    if answers.get("many_integrations") == "yes":
+        score += 1
+    if answers.get("documentation") == "not documented":
+        score += 2
+    elif answers.get("documentation") == "somewhat":
+        score += 1
+    # Scoring: 0-1 = low, 2-3 = moderate, 4+ = high
+    if score >= 4:
+        return "high"
+    elif score >= 2:
+        return "moderate"
+    else:
+        return "low"
+
 
 def get_valid_input(prompt, valid_options):
     """
@@ -150,11 +176,12 @@ def recommend_hosting():
         scores["physical"] += 2
 
     # Migration Complexity
-    if answers["migration"] == "low":
+    migration_complexity = get_migration_complexity(answers)
+    if migration_complexity == "low":
         scores["aws"] += 2
-    elif answers["migration"] == "moderate":
+    elif migration_complexity == "moderate":
         scores["on_prem_cloud"] += 1
-    else:
+    else: # high
         scores["physical"] += 2
 
     # Operational Expertise
@@ -197,7 +224,7 @@ def recommend_hosting():
             explanations.append("Low budget sensitivity favors AWS's cost efficiency.")
         if answers["app_age"] == "modern":
             explanations.append("Modern, cloud-ready applications are ideal for AWS.")
-        if answers["migration"] == "low":
+        if migration_complexity == "low":
             explanations.append("Low migration complexity makes AWS adoption easier.")
         if answers["ops_expertise"] == "aws":
             explanations.append("Your team has AWS expertise.")
@@ -214,7 +241,7 @@ def recommend_hosting():
             explanations.append("High data volume is often better managed on-premises.")
         if answers["security"] == "moderate":
             explanations.append("Moderate security needs are met by on-prem cloud.")
-        if answers["migration"] == "moderate":
+        if migration_complexity == "moderate":
             explanations.append("Moderate migration complexity fits on-prem cloud.")
         if answers["ops_expertise"] == "vmware":
             explanations.append("Your team has VMware/on-prem expertise.")
@@ -229,7 +256,7 @@ def recommend_hosting():
             explanations.append("High security needs are best met by physical hosting.")
         if answers["app_age"] == "legacy":
             explanations.append("Legacy applications are often better suited to physical servers.")
-        if answers["migration"] == "high":
+        if migration_complexity == "high":
             explanations.append("High migration complexity favors staying on physical infrastructure.")
         if answers["ops_expertise"] == "minimal":
             explanations.append("Minimal cloud/on-prem expertise may require physical hosting.")
@@ -385,8 +412,10 @@ def run_gui():
         else: scores["aws"] += 1
         if answers["app_age"] == "modern": scores["aws"] += 2
         else: scores["physical"] += 2
-        if answers["migration"] == "low": scores["aws"] += 2
-        elif answers["migration"] == "moderate": scores["on_prem_cloud"] += 1
+        migration_complexity = get_migration_complexity(answers)
+        if migration_complexity == "low":
+            scores["aws"] += 2
+        elif migration_complexity == "moderate": scores["on_prem_cloud"] += 1
         else: scores["physical"] += 2
         if answers["ops_expertise"] == "aws": scores["aws"] += 2
         elif answers["ops_expertise"] == "vmware": scores["on_prem_cloud"] += 2
@@ -403,7 +432,7 @@ def run_gui():
             if answers["fault_tolerance"] == "high": explanations.append("High fault tolerance needs are best met by AWS.")
             if answers["budget"] == "low": explanations.append("Low budget sensitivity favors AWS's cost efficiency.")
             if answers["app_age"] == "modern": explanations.append("Modern, cloud-ready applications are ideal for AWS.")
-            if answers["migration"] == "low": explanations.append("Low migration complexity makes AWS adoption easier.")
+            if migration_complexity == "low": explanations.append("Low migration complexity makes AWS adoption easier.")
             if answers["ops_expertise"] == "aws": explanations.append("Your team has AWS expertise.")
             if answers["scalability"] == "yes": explanations.append("AWS is well-suited for scalable workloads.")
             if answers["compliance"] == "no": explanations.append("No strict compliance requirements allow for public cloud hosting.")
@@ -412,7 +441,7 @@ def run_gui():
             if answers["latency"] == "moderate": explanations.append("Moderate latency sensitivity is suitable for on-prem cloud.")
             if answers["data_volume"] == "high": explanations.append("High data volume is often better managed on-premises.")
             if answers["security"] == "moderate": explanations.append("Moderate security needs are met by on-prem cloud.")
-            if answers["migration"] == "moderate": explanations.append("Moderate migration complexity fits on-prem cloud.")
+            if migration_complexity == "moderate": explanations.append("Moderate migration complexity fits on-prem cloud.")
             if answers["ops_expertise"] == "vmware": explanations.append("Your team has VMware/on-prem expertise.")
             if answers["compliance"] == "yes": explanations.append("Compliance requirements are often easier to meet on-premises.")
             if answers["scalability"] == "yes": explanations.append("On-prem cloud can support some scalability needs.")
@@ -420,7 +449,7 @@ def run_gui():
             if answers["latency"] == "high": explanations.append("High latency sensitivity is best served by physical infrastructure.")
             if answers["security"] == "high": explanations.append("High security needs are best met by physical hosting.")
             if answers["app_age"] == "legacy": explanations.append("Legacy applications are often better suited to physical servers.")
-            if answers["migration"] == "high": explanations.append("High migration complexity favors staying on physical infrastructure.")
+            if migration_complexity == "high": explanations.append("High migration complexity favors staying on physical infrastructure.")
             if answers["ops_expertise"] == "minimal": explanations.append("Minimal cloud/on-prem expertise may require physical hosting.")
             if answers["scalability"] == "no": explanations.append("Physical infrastructure is suitable for stable, non-scaling workloads.")
         # Show results
