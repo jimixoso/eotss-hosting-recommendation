@@ -1,96 +1,196 @@
 # EOTSS Hosting Recommendation System
 
-A decision-support tool for the Executive Office of Technology Services and Security (EOTSS), Commonwealth of Massachusetts. This project helps users determine the most suitable hosting environment (AWS, on-prem cloud, or physical infrastructure) for their application based on technical and business criteria.
+A comprehensive hosting recommendation system for the Executive Office of Technology Services and Security (EOTSS) of the Commonwealth of Massachusetts. This system helps agencies determine the optimal hosting platform for their applications through an intelligent assessment process.
 
 ## Features
-- **CLI/GUI Tool**: Interactive command-line and desktop GUI for assessments
-- **Web App**: Modern, accessible web interface with progress tracking, print/copy features, and government-style design
-- **Customizable**: Easily extend questions and logic
-- **Export/Print**: Copy or print results for reporting
 
----
+### Core Assessment System
+- **Intelligent Questioning**: 12 targeted questions covering application requirements and cloud readiness
+- **Smart Scoring Algorithm**: Analyzes responses to recommend AWS, On-Prem Cloud, or Physical hosting
+- **Detailed Explanations**: Provides reasoning for each recommendation
+- **Progress Tracking**: Real-time progress indicator during assessment
+
+### Email Automation (Version 2)
+- **Automated EOTSS Notifications**: Sends assessment results to EOTSS for review
+- **Agency Confirmations**: Confirms submission to agencies
+- **Review System**: EOTSS can approve/reject assessments with feedback
+- **Status Tracking**: Complete workflow from submission to approval
+- **Professional Email Templates**: Government-appropriate formatting
+
+### Management Features
+- **Assessment Dashboard**: View all submissions and their status
+- **Review Interface**: Professional form for EOTSS to approve/reject assessments
+- **File-based Storage**: Simple JSON storage for assessments (no database required)
+- **Unique Assessment IDs**: Each submission gets a unique identifier
 
 ## Prerequisites
-- Python 3.7+
-- pip (Python package manager)
 
----
+- Python 3.7+
+- Flask
+- Flask-Mail
+- Gmail account with 2FA enabled (for email functionality)
 
 ## Installation
-1. **Clone or download the repository**
-2. **Navigate to the project folder**
-3. **Install dependencies**:
-   ```sh
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd EOTSS
+   ```
+
+2. **Install dependencies**:
+   ```bash
    pip install -r requirements.txt
    ```
 
----
+3. **Configure email settings** (in `app.py`):
+   ```python
+   app.config['MAIL_USERNAME'] = 'your-email@gmail.com'
+   app.config['MAIL_PASSWORD'] = 'your-gmail-app-password'
+   app.config['MAIL_DEFAULT_SENDER'] = 'your-email@gmail.com'
+   ```
+
+4. **Set up Gmail App Password**:
+   - Enable 2-Factor Authentication on your Gmail account
+   - Go to Google Account Settings → Security → App Passwords
+   - Generate a password for "Mail"
+   - Use this password in the configuration
 
 ## Usage
 
-### 1. Command-Line Interface (CLI) & GUI Tool
+### Web Application
 
-The CLI/GUI tool is in `eotss_hosting_recommendation_with_app_age.py`.
+1. **Start the application**:
+   ```bash
+   python app.py
+   ```
 
-#### **Run the CLI Tool**
-```sh
+2. **Access the application**:
+   - Main form: `http://localhost:5000`
+   - Dashboard: `http://localhost:5000/dashboard`
+
+### Complete Workflow
+
+1. **Agency Assessment**:
+   - Agency completes the assessment form
+   - System generates hosting recommendation
+   - Agency fills out contact information
+   - Assessment is submitted to EOTSS
+
+2. **EOTSS Review**:
+   - EOTSS receives email with assessment details and review link
+   - EOTSS clicks link to access review form
+   - EOTSS can approve or reject with optional comments
+   - Agency receives notification of decision
+
+3. **Management**:
+   - Use dashboard to view all assessments
+   - Track status (pending/approved/rejected)
+   - Access review forms for pending assessments
+
+### CLI/GUI Tool
+
+The original CLI and GUI versions are still available:
+
+```bash
+# CLI version
 python eotss_hosting_recommendation_with_app_age.py
-```
-- Answer the questions in your terminal.
-- Review, edit, and save your results as prompted.
 
-#### **Run the GUI Tool**
-```sh
+# GUI version
 python eotss_hosting_recommendation_with_app_age.py --gui
 ```
-- A desktop window will open for you to complete the assessment.
-- Results are shown in the app.
-
-#### **Command-Line Arguments**
-You can also provide answers directly as arguments (see `--help`):
-```sh
-python eotss_hosting_recommendation_with_app_age.py --fault_tolerance high --latency low ...
-```
-
----
-
-### 2. Web App (Flask)
-
-The web app is in `app.py` and uses the `templates/` folder for HTML.
-
-#### **Run the Web App**
-```sh
-python app.py
-```
-- Open your browser and go to [http://localhost:5000](http://localhost:5000)
-- Complete the assessment in your browser
-- Features:
-  - Progress bar
-  - Print-friendly results
-  - One-click copy of results
-  - Government-style, accessible design
-
----
 
 ## Project Structure
+
 ```
 EOTSS/
-├── app.py                        # Flask web app
-├── eotss_hosting_recommendation_with_app_age.py  # CLI/GUI tool
-├── requirements.txt              # Python dependencies
+├── app.py                              # Flask web application
+├── eotss_hosting_recommendation_with_app_age.py  # Original CLI/GUI tool
+├── requirements.txt                    # Python dependencies
 ├── templates/
-│   ├── form.html                 # Web app assessment form
-│   └── result.html               # Web app results page
-└── README.md                     # Project documentation
+│   ├── form.html                      # Assessment form
+│   ├── result.html                    # Results page with email submission
+│   ├── review.html                    # EOTSS review form
+│   └── dashboard.html                 # Assessment management dashboard
+├── assessment_data/                   # JSON files storing assessments
+├── Dockerfile                         # Docker configuration
+├── Procfile                          # Heroku deployment
+├── nginx.conf                        # Nginx configuration
+└── README.md                         # This file
 ```
 
----
+## Email Configuration
+
+### For Demo/Testing
+- **EOTSS Email**: `jimixoso@mit.edu` (configurable in `app.py`)
+- **Agency Email**: Whatever email they enter in the contact form
+- **SMTP**: Gmail SMTP (smtp.gmail.com:587)
+
+### For Production
+- Update email credentials to use EOTSS email server
+- Configure proper domain and security settings
+- Update review URLs to use production domain
+
+## Deployment
+
+### Local Development
+```bash
+python app.py
+```
+
+### Docker Deployment
+```bash
+docker build -t eotss-hosting .
+docker run -p 8000:8000 eotss-hosting
+```
+
+### Production Deployment
+1. Set up a production server
+2. Configure Nginx as reverse proxy
+3. Use Gunicorn as WSGI server
+4. Set up proper SSL certificates
+5. Configure production email settings
 
 ## Customization
-- To add or change questions, edit the `QUESTIONS` and `CLOUD_READINESS_QUESTIONS` lists in both `app.py` and `eotss_hosting_recommendation_with_app_age.py`.
-- To change scoring logic, update the `score_answers` function in both files.
 
----
+### Adding Questions
+Edit the `QUESTIONS` and `CLOUD_READINESS_QUESTIONS` lists in `app.py` to add or modify assessment questions.
+
+### Modifying Scoring
+Update the `score_answers()` function to adjust the recommendation algorithm.
+
+### Email Templates
+Modify the email functions (`send_eotss_notification`, `send_agency_confirmation`, `send_review_notification`) to customize email content.
+
+### Styling
+The application uses Tailwind CSS. Modify the HTML templates to change the appearance.
+
+## Security Considerations
+
+- **Secret Key**: Change the `SECRET_KEY` in production
+- **Email Credentials**: Use environment variables for sensitive data
+- **File Permissions**: Ensure `assessment_data/` directory has proper permissions
+- **HTTPS**: Use SSL/TLS in production
+
+## Troubleshooting
+
+### Email Issues
+- Ensure 2FA is enabled on Gmail
+- Verify app password is correct
+- Check firewall settings for SMTP ports
+
+### Assessment Not Saving
+- Ensure `assessment_data/` directory exists and is writable
+- Check file permissions
+
+### Review Links Not Working
+- Verify the application is running on the correct port
+- Check that assessment IDs are being generated correctly
 
 ## License
-This project is intended for internal use by the Commonwealth of Massachusetts. Contact EOTSS for more information. 
+
+This project is developed for the Commonwealth of Massachusetts EOTSS.
+
+## Support
+
+For technical support or questions about the hosting recommendation system, contact the EOTSS team, and Jimi Oso. 

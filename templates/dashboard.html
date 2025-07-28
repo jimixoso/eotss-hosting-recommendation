@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EOTSS Assessment Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900">
+    <div class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-xl p-8">
+            <div class="border-b-2 border-blue-800 pb-4 mb-6">
+                <h1 class="text-3xl font-bold text-blue-900 text-center">EOTSS Assessment Dashboard</h1>
+                <p class="text-center text-gray-600 mt-2">Executive Office of Technology Services and Security</p>
+                <p class="text-center text-gray-600">Commonwealth of Massachusetts</p>
+            </div>
+            
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 p-4 rounded {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-yellow-100 text-yellow-700 border border-yellow-200{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Statistics -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-blue-50 border border-blue-200 rounded p-4 text-center">
+                    <div class="text-2xl font-bold text-blue-800">{{ assessments|length }}</div>
+                    <div class="text-sm text-gray-600">Total Assessments</div>
+                </div>
+                <div class="bg-yellow-50 border border-yellow-200 rounded p-4 text-center">
+                    <div class="text-2xl font-bold text-yellow-800">{{ assessments|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+                    <div class="text-sm text-gray-600">Pending Review</div>
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded p-4 text-center">
+                    <div class="text-2xl font-bold text-green-800">{{ assessments|selectattr('status', 'equalto', 'approved')|list|length }}</div>
+                    <div class="text-sm text-gray-600">Approved</div>
+                </div>
+                <div class="bg-red-50 border border-red-200 rounded p-4 text-center">
+                    <div class="text-2xl font-bold text-red-800">{{ assessments|selectattr('status', 'equalto', 'rejected')|list|length }}</div>
+                    <div class="text-sm text-gray-600">Rejected</div>
+                </div>
+            </div>
+            
+            <!-- Assessments Table -->
+            {% if assessments %}
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse border border-gray-300">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-4 py-2 text-left">Agency</th>
+                            <th class="border border-gray-300 px-4 py-2 text-left">Contact</th>
+                            <th class="border border-gray-300 px-4 py-2 text-left">Recommendation</th>
+                            <th class="border border-gray-300 px-4 py-2 text-left">Status</th>
+                            <th class="border border-gray-300 px-4 py-2 text-left">Submitted</th>
+                            <th class="border border-gray-300 px-4 py-2 text-left">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for assessment in assessments %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="border border-gray-300 px-4 py-2">
+                                <div class="font-semibold">{{ assessment.agency_info.agency_name }}</div>
+                                <div class="text-sm text-gray-600">{{ assessment.agency_info.department }}</div>
+                            </td>
+                            <td class="border border-gray-300 px-4 py-2">
+                                <div>{{ assessment.agency_info.contact_name }}</div>
+                                <div class="text-sm text-gray-600">{{ assessment.agency_info.contact_email }}</div>
+                            </td>
+                            <td class="border border-gray-300 px-4 py-2">
+                                <span class="font-semibold text-blue-800">{{ assessment.assessment_data.recommendation }}</span>
+                            </td>
+                            <td class="border border-gray-300 px-4 py-2">
+                                {% if assessment.status == 'pending' %}
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm font-semibold">Pending</span>
+                                {% elif assessment.status == 'approved' %}
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-semibold">Approved</span>
+                                {% elif assessment.status == 'rejected' %}
+                                    <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-sm font-semibold">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td class="border border-gray-300 px-4 py-2 text-sm">
+                                {{ assessment.submitted_at[:10] }}
+                            </td>
+                            <td class="border border-gray-300 px-4 py-2">
+                                {% if assessment.status == 'pending' %}
+                                    <a href="/review/{{ assessment.id }}" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition">
+                                        Review
+                                    </a>
+                                {% else %}
+                                    <span class="text-gray-500 text-sm">Reviewed</span>
+                                    {% if assessment.review_notes %}
+                                        <div class="text-xs text-gray-600 mt-1">
+                                            <strong>Notes:</strong> {{ assessment.review_notes[:50] }}{% if assessment.review_notes|length > 50 %}...{% endif %}
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <div class="text-gray-500 text-lg">No assessments found.</div>
+                <div class="text-gray-400 mt-2">Assessments will appear here once agencies submit them.</div>
+            </div>
+            {% endif %}
+            
+            <!-- Navigation -->
+            <div class="mt-6 text-center">
+                <a href="/" class="bg-blue-800 text-white px-6 py-2 rounded border-2 border-blue-900 hover:bg-blue-900 transition">
+                    ← Back to Assessment Form
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

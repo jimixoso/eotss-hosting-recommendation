@@ -1,18 +1,27 @@
 from flask import Flask, render_template, request, flash, redirect, url_for
 from flask_mail import Mail, Message
+import json
+import uuid
+from datetime import datetime
+import os
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'demo-secret-key'  # Change this in production
+app.config['SECRET_KEY'] = 'demo-secret-key-12345'  # Change this in production
 
 # Email configuration for demo
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'jimixoso@gmail.com'  # Replace with your email, should be something like no-reply@mass.gov
-app.config['MAIL_PASSWORD'] = 'xqga lnyf kjav qtsq'     # Replace with your app password, should be server app password for the EOTSS server.
-app.config['MAIL_DEFAULT_SENDER'] = 'jimixoso@gmail.com' # Should be same as MAIL_USERNAME
+app.config['MAIL_USERNAME'] = 'jimixoso@gmail.com'  # Replace with your email
+app.config['MAIL_PASSWORD'] = 'zxpe jbvo ntqy xtme'     # Replace with your app password
+app.config['MAIL_DEFAULT_SENDER'] = 'jimixoso@gmail.com'
 
 mail = Mail(app)
+
+# Create data directory if it doesn't exist
+DATA_DIR = 'assessment_data'
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 # QUESTIONS: Main assessment questions for application requirements.
 # Each question is a dict with a key, prompt, valid options, and a help string for user guidance.
@@ -35,6 +44,57 @@ CLOUD_READINESS_QUESTIONS = [
     {"key": "compatible_runtime", "prompt": "Does the app run on a cloud-supported OS/runtime (e.g., modern Linux, Windows Server 2016+)?", "options": ["yes", "no"], "help": "Yes = runs on modern Linux/Windows, No = needs legacy OS"},
     {"key": "no_hardware_deps", "prompt": "Does the app avoid relying on physical hardware or specialized networking?", "options": ["yes", "no"], "help": "Yes = no special cards/devices, No = needs hardware access"},
 ]
+
+def save_assessment(agency_info, assessment_data):
+    """
+    Save assessment data to a JSON file with unique ID.
+    Returns the assessment ID.
+    """
+    assessment_id = str(uuid.uuid4())
+    assessment_file = os.path.join(DATA_DIR, f"{assessment_id}.json")
+    
+    assessment_record = {
+        "id": assessment_id,
+        "status": "pending",
+        "submitted_at": datetime.now().isoformat(),
+        "agency_info": agency_info,
+        "assessment_data": assessment_data
+    }
+    
+    with open(assessment_file, 'w') as f:
+        json.dump(assessment_record, f, indent=2)
+    
+    return assessment_id
+
+def load_assessment(assessment_id):
+    """
+    Load assessment data from JSON file.
+    Returns None if not found.
+    """
+    assessment_file = os.path.join(DATA_DIR, f"{assessment_id}.json")
+    if os.path.exists(assessment_file):
+        with open(assessment_file, 'r') as f:
+            return json.load(f)
+    return None
+
+def update_assessment_status(assessment_id, status, review_notes=""):
+    """
+    Update assessment status and add review notes.
+    """
+    assessment_file = os.path.join(DATA_DIR, f"{assessment_id}.json")
+    if os.path.exists(assessment_file):
+        with open(assessment_file, 'r') as f:
+            assessment = json.load(f)
+        
+        assessment["status"] = status
+        assessment["reviewed_at"] = datetime.now().isoformat()
+        assessment["review_notes"] = review_notes
+        
+        with open(assessment_file, 'w') as f:
+            json.dump(assessment, f, indent=2)
+        
+        return True
+    return False
 
 def score_answers(answers):
     """
@@ -100,14 +160,17 @@ def score_answers(answers):
         if answers["scalability"] == "no": explanations.append("Physical infrastructure is suitable for stable, non-scaling workloads.")
     return recommendation, scores, explanations
 
-def send_eotss_notification(agency_info, results_data):
+def send_eotss_notification(agency_info, results_data, assessment_id):
     """
-    Send notification email to EOTSS with assessment results.
+    Send notification email to EOTSS with assessment results and review link.
     """
     try:
+        # Generate review link
+        review_url = f"http://localhost:5000/review/{assessment_id}"
+        
         msg = Message(
             subject=f"EOTSS Hosting Assessment - {agency_info['agency_name']} - {results_data['date']}",
-            recipients=['jimixoso@mit.edu'],
+            recipients=['jimixoso@mit.edu'],#Replace with EOTSS recipient email
             body=f"""
 Dear EOTSS Team,
 
@@ -127,6 +190,11 @@ ANALYSIS SUMMARY:
 
 ASSESSMENT RESPONSES:
 {results_data['answers_text']}
+
+REVIEW REQUIRED:
+Please review this assessment and provide approval or feedback.
+
+Review Link: {review_url}
 
 Please review and follow up with the agency as needed.
 
@@ -152,6 +220,10 @@ EOTSS Hosting Recommendation System
 
 <h3>Assessment Responses:</h3>
 {results_data['answers_html']}
+
+<h3>Review Required:</h3>
+<p>Please review this assessment and provide approval or feedback.</p>
+<p><a href="{review_url}" style="background-color: #1f2937; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Review Assessment</a></p>
 
 <p><em>Please review and follow up with the agency as needed.</em></p>
 </body>
@@ -193,6 +265,42 @@ EOTSS Hosting Recommendation System
         return True
     except Exception as e:
         print(f"Error sending confirmation email: {e}")
+        return False
+
+def send_review_notification(agency_email, agency_name, status, review_notes=""):
+    """
+    Send notification to agency about review decision.
+    """
+    try:
+        status_text = "APPROVED" if status == "approved" else "REJECTED"
+        subject = f"EOTSS Assessment {status_text} - {agency_name}"
+        
+        msg = Message(
+            subject=subject,
+            recipients=[agency_email],
+            body=f"""
+Dear {agency_name} Team,
+
+Your EOTSS Hosting Assessment has been reviewed.
+
+DECISION: {status_text}
+
+{f"REVIEW NOTES: {review_notes}" if review_notes else ""}
+
+Next Steps:
+- If APPROVED: EOTSS will contact you within 1-2 business days to begin implementation planning.
+- If REJECTED: Please review the feedback and resubmit your assessment with any necessary changes.
+
+If you have any questions, please contact EOTSS directly.
+
+Best regards,
+EOTSS Hosting Recommendation System
+            """
+        )
+        mail.send(msg)
+        return True
+    except Exception as e:
+        print(f"Error sending review notification: {e}")
         return False
 
 @app.route('/', methods=['GET', 'POST'])
@@ -237,7 +345,6 @@ def submit_to_eotss():
         return redirect(url_for('index'))
     
     # Prepare results data
-    from datetime import datetime
     results_data = {
         'recommendation': recommendation,
         'scores_text': scores,
@@ -250,8 +357,19 @@ def submit_to_eotss():
         'contact_name': agency_info['contact_name']
     }
     
+    # Save assessment to file
+    assessment_data = {
+        'recommendation': recommendation,
+        'scores': scores,
+        'explanations': explanations,
+        'answers': answers,
+        'results_data': results_data
+    }
+    
+    assessment_id = save_assessment(agency_info, assessment_data)
+    
     # Send emails
-    eotss_sent = send_eotss_notification(agency_info, results_data)
+    eotss_sent = send_eotss_notification(agency_info, results_data, assessment_id)
     confirmation_sent = send_agency_confirmation(agency_info['contact_email'], results_data)
     
     if eotss_sent and confirmation_sent:
@@ -260,6 +378,85 @@ def submit_to_eotss():
         flash('Assessment submitted to EOTSS, but there was an issue sending your confirmation email. Please contact EOTSS directly.', 'warning')
     else:
         flash('There was an issue submitting your assessment. Please try again or contact EOTSS directly.', 'error')
+    
+    return redirect(url_for('index'))
+
+@app.route('/dashboard')
+def dashboard():
+    """
+    Display a dashboard of all assessments for EOTSS management.
+    """
+    assessments = []
+    
+    if os.path.exists(DATA_DIR):
+        for filename in os.listdir(DATA_DIR):
+            if filename.endswith('.json'):
+                assessment_file = os.path.join(DATA_DIR, filename)
+                try:
+                    with open(assessment_file, 'r') as f:
+                        assessment = json.load(f)
+                        assessments.append(assessment)
+                except:
+                    continue
+    
+    # Sort by submission date (newest first)
+    assessments.sort(key=lambda x: x['submitted_at'], reverse=True)
+    
+    return render_template('dashboard.html', assessments=assessments)
+
+@app.route('/review/<assessment_id>')
+def review_assessment(assessment_id):
+    """
+    Display the review form for EOTSS to approve/reject an assessment.
+    """
+    assessment = load_assessment(assessment_id)
+    if not assessment:
+        flash('Assessment not found.', 'error')
+        return redirect(url_for('index'))
+    
+    if assessment['status'] != 'pending':
+        flash('This assessment has already been reviewed.', 'info')
+        return redirect(url_for('index'))
+    
+    return render_template('review.html', assessment=assessment)
+
+@app.route('/process_review/<assessment_id>', methods=['POST'])
+def process_review(assessment_id):
+    """
+    Handle the review decision (approve/reject) from EOTSS.
+    """
+    assessment = load_assessment(assessment_id)
+    if not assessment:
+        flash('Assessment not found.', 'error')
+        return redirect(url_for('index'))
+    
+    if assessment['status'] != 'pending':
+        flash('This assessment has already been reviewed.', 'info')
+        return redirect(url_for('index'))
+    
+    # Get review decision
+    decision = request.form.get('decision')
+    review_notes = request.form.get('review_notes', '')
+    
+    if decision not in ['approved', 'rejected']:
+        flash('Invalid decision.', 'error')
+        return redirect(url_for('review_assessment', assessment_id=assessment_id))
+    
+    # Update assessment status
+    success = update_assessment_status(assessment_id, decision, review_notes)
+    
+    if success:
+        # Send notification to agency
+        agency_email = assessment['agency_info']['contact_email']
+        agency_name = assessment['agency_info']['agency_name']
+        notification_sent = send_review_notification(agency_email, agency_name, decision, review_notes)
+        
+        if notification_sent:
+            flash(f'Assessment {decision}. Notification sent to agency.', 'success')
+        else:
+            flash(f'Assessment {decision}, but there was an issue sending the notification email.', 'warning')
+    else:
+        flash('Error updating assessment status.', 'error')
     
     return redirect(url_for('index'))
 
