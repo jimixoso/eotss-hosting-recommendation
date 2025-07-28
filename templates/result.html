@@ -16,11 +16,22 @@
 <body class="min-h-screen bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 flex items-center justify-center">
     <div class="w-full max-w-3xl bg-white rounded-lg shadow-xl p-8 my-8">
         <div class="border-b-2 border-blue-800 pb-4 mb-6">
-            <h1 class="text-2xl font-bold text-red-900 text-center">Hosting Recommendation Report</h1>
+            <h1 class="text-2xl font-bold text-blue-900 text-center">Hosting Recommendation Report</h1>
             <p class="text-center text-gray-600 mt-2">Executive Office of Technology Services and Security</p>
             <p class="text-center text-gray-600">Commonwealth of Massachusetts</p>
             <p class="text-center text-gray-500 text-sm mt-1">Generated on: <span id="current-date"></span></p>
         </div>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 rounded {% if category == 'error' %}bg-red-100 text-red-700 border border-red-200{% elif category == 'success' %}bg-green-100 text-green-700 border border-green-200{% else %}bg-yellow-100 text-yellow-700 border border-yellow-200{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
         
         <div class="bg-blue-50 border border-blue-200 rounded p-6 mb-6">
             <h2 class="text-xl font-bold text-blue-900 mb-4">System Recommendation: <span class="text-blue-800" id="recommendation-text">{{ recommendation|upper }}</span></h2>
@@ -60,6 +71,45 @@
                         <li><span class="font-medium">{{ q.prompt }}</span> {{ answers[q.key]|capitalize }}</li>
                     {% endfor %}
                 </ul>
+            </div>
+        </div>
+        
+        <!-- EOTSS Submission Form -->
+        <div class="mb-6">
+            <h2 class="text-lg font-semibold text-blue-900 mb-4 border-l-4 border-blue-800 pl-3">Submit to EOTSS for Review</h2>
+            <div class="bg-gray-50 border border-gray-200 rounded p-4">
+                <form action="/submit_to_eotss" method="post">
+                    <!-- Hidden fields to pass assessment data -->
+                    <input type="hidden" name="recommendation" value="{{ recommendation|upper }}">
+                    <input type="hidden" name="scores" value="{% for k, v in scores.items() %}{{ k|replace('_', ' ')|title }}: {{ v }}{% if not loop.last %}{{ '\n' }}{% endif %}{% endfor %}">
+                    <input type="hidden" name="explanations" value="{% if explanations %}{% for reason in explanations %}{{ reason }}{% if not loop.last %}{{ '\n' }}{% endif %}{% endfor %}{% endif %}">
+                    <input type="hidden" name="answers" value="{% for q in questions %}{{ q.prompt }} {{ answers[q.key]|capitalize }}{% if not loop.last %}{{ '\n' }}{% endif %}{% endfor %}{{ '\n' }}Application Age (determined): {{ answers['app_age']|capitalize }}{% for q in cloud_questions %}{{ '\n' }}{{ q.prompt }} {{ answers[q.key]|capitalize }}{% endfor %}">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="agency_name" class="block font-semibold text-gray-800 mb-1">Agency Name *</label>
+                            <input type="text" name="agency_name" id="agency_name" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="department" class="block font-semibold text-gray-800 mb-1">Department *</label>
+                            <input type="text" name="department" id="department" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="contact_name" class="block font-semibold text-gray-800 mb-1">Contact Name *</label>
+                            <input type="text" name="contact_name" id="contact_name" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label for="contact_email" class="block font-semibold text-gray-800 mb-1">Contact Email *</label>
+                            <input type="email" name="contact_email" id="contact_email" required class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button type="submit" class="w-full py-3 bg-blue-800 text-white font-semibold rounded border-2 border-blue-900 hover:bg-blue-900 transition">
+                            📧 Submit Assessment to EOTSS
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
         
