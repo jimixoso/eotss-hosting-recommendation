@@ -4,6 +4,8 @@ import json
 import uuid
 from datetime import datetime
 import os
+import random
+import string
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'demo-secret-key-12345'  # Change this in production
@@ -45,16 +47,28 @@ CLOUD_READINESS_QUESTIONS = [
     {"key": "no_hardware_deps", "prompt": "Does the app require physical hardware or specialized networking?", "options": ["yes", "no"], "help": "Yes = needs special cards/devices, No = runs on standard hardware"},
 ]
 
+def generate_ticket_id():
+    """
+    Generate a unique 8-character ticket ID.
+    Returns a string like 'ABC12345'.
+    """
+    # Generate 3 uppercase letters + 5 digits
+    letters = ''.join(random.choices(string.ascii_uppercase, k=3))
+    digits = ''.join(random.choices(string.digits, k=5))
+    return f"{letters}{digits}"
+
 def save_assessment(agency_info, assessment_data):
     """
-    Save assessment data to a JSON file with unique ID.
+    Save assessment data to a JSON file with unique ID and ticket ID.
     Returns the assessment ID.
     """
     assessment_id = str(uuid.uuid4())
-    assessment_file = os.path.join(DATA_DIR, f"{assessment_id}.json")
+    ticket_id = generate_ticket_id()
+    assessment_file = os.path.join(DATA_DIR, f"{ticket_id}_{assessment_id}.json")
     
     assessment_record = {
         "id": assessment_id,
+        "ticket_id": ticket_id,
         "status": "pending",
         "submitted_at": datetime.now().isoformat(),
         "agency_info": agency_info,
@@ -64,36 +78,42 @@ def save_assessment(agency_info, assessment_data):
     with open(assessment_file, 'w') as f:
         json.dump(assessment_record, f, indent=2)
     
-    return assessment_id
+    return assessment_id, ticket_id
 
 def load_assessment(assessment_id):
     """
     Load assessment data from JSON file.
     Returns None if not found.
     """
-    assessment_file = os.path.join(DATA_DIR, f"{assessment_id}.json")
-    if os.path.exists(assessment_file):
-        with open(assessment_file, 'r') as f:
-            return json.load(f)
+    # Search for files that contain the assessment_id
+    if os.path.exists(DATA_DIR):
+        for filename in os.listdir(DATA_DIR):
+            if filename.endswith('.json') and assessment_id in filename:
+                assessment_file = os.path.join(DATA_DIR, filename)
+                with open(assessment_file, 'r') as f:
+                    return json.load(f)
     return None
 
 def update_assessment_status(assessment_id, status, review_notes=""):
     """
     Update assessment status and add review notes.
     """
-    assessment_file = os.path.join(DATA_DIR, f"{assessment_id}.json")
-    if os.path.exists(assessment_file):
-        with open(assessment_file, 'r') as f:
-            assessment = json.load(f)
-        
-        assessment["status"] = status
-        assessment["reviewed_at"] = datetime.now().isoformat()
-        assessment["review_notes"] = review_notes
-        
-        with open(assessment_file, 'w') as f:
-            json.dump(assessment, f, indent=2)
-        
-        return True
+    # Search for files that contain the assessment_id
+    if os.path.exists(DATA_DIR):
+        for filename in os.listdir(DATA_DIR):
+            if filename.endswith('.json') and assessment_id in filename:
+                assessment_file = os.path.join(DATA_DIR, filename)
+                with open(assessment_file, 'r') as f:
+                    assessment = json.load(f)
+                
+                assessment["status"] = status
+                assessment["reviewed_at"] = datetime.now().isoformat()
+                assessment["review_notes"] = review_notes
+                
+                with open(assessment_file, 'w') as f:
+                    json.dump(assessment, f, indent=2)
+                
+                return True
     return False
 
 def score_answers(answers):
@@ -170,7 +190,7 @@ def score_answers(answers):
         if answers["scalability"] == "no": explanations.append("Physical infrastructure is suitable for stable, non-scaling workloads.")
     return recommendation, scores, explanations
 
-def send_eotss_notification(agency_info, results_data, assessment_id):
+def send_eotss_notification(agency_info, results_data, assessment_id, ticket_id):
     """
     Send notification email to EOTSS with assessment results and review link.
     """
@@ -179,12 +199,14 @@ def send_eotss_notification(agency_info, results_data, assessment_id):
         review_url = f"http://localhost:5000/review/{assessment_id}"
         
         msg = Message(
-            subject=f"EOTSS Hosting Assessment - {agency_info['agency_name']} - {results_data['date']}",
+            subject=f"EOTSS Hosting Assessment #{ticket_id} - {agency_info['agency_name']} - {results_data['date']}",
             recipients=['jimixoso@mit.edu'],#Replace with EOTSS recipient email
             body=f"""
 Dear EOTSS Team,
 
 A hosting assessment has been completed for {agency_info['agency_name']}.
+
+TICKET ID: #{ticket_id}
 
 ASSESSMENT RESULTS:
 - Recommended Platform: {results_data['recommendation']}
@@ -215,6 +237,7 @@ EOTSS Hosting Recommendation System
 <html>
 <body>
 <h2>EOTSS Hosting Assessment Notification</h2>
+<p><strong>Ticket ID:</strong> #{ticket_id}</p>
 <p><strong>Agency:</strong> {agency_info['agency_name']}</p>
 <p><strong>Contact:</strong> {agency_info['contact_name']} ({agency_info['contact_email']})</p>
 <p><strong>Department:</strong> {agency_info['department']}</p>
@@ -246,18 +269,20 @@ EOTSS Hosting Recommendation System
         print(f"Error sending email: {e}")
         return False
 
-def send_agency_confirmation(agency_email, results_data):
+def send_agency_confirmation(agency_email, results_data, ticket_id):
     """
     Send confirmation email to the agency.
     """
     try:
         msg = Message(
-            subject=f"EOTSS Hosting Assessment Confirmation - {results_data['date']}",
+            subject=f"EOTSS Hosting Assessment #{ticket_id} Confirmation - {results_data['date']}",
             recipients=[agency_email],
             body=f"""
 Dear {results_data['contact_name']},
 
 Thank you for completing the EOTSS Hosting Assessment. Your results have been submitted to EOTSS for review.
+
+TICKET ID: #{ticket_id}
 
 ASSESSMENT RESULTS:
 - Recommended Platform: {results_data['recommendation']}
@@ -277,13 +302,13 @@ EOTSS Hosting Recommendation System
         print(f"Error sending confirmation email: {e}")
         return False
 
-def send_review_notification(agency_email, agency_name, status, review_notes=""):
+def send_review_notification(agency_email, agency_name, status, ticket_id, review_notes=""):
     """
     Send notification to agency about review decision.
     """
     try:
         status_text = "APPROVED" if status == "approved" else "REJECTED"
-        subject = f"EOTSS Assessment {status_text} - {agency_name}"
+        subject = f"EOTSS Assessment #{ticket_id} {status_text} - {agency_name}"
         
         msg = Message(
             subject=subject,
@@ -293,6 +318,7 @@ Dear {agency_name} Team,
 
 Your EOTSS Hosting Assessment has been reviewed.
 
+TICKET ID: #{ticket_id}
 DECISION: {status_text}
 
 {f"REVIEW NOTES: {review_notes}" if review_notes else ""}
@@ -376,11 +402,11 @@ def submit_to_eotss():
         'results_data': results_data
     }
     
-    assessment_id = save_assessment(agency_info, assessment_data)
+    assessment_id, ticket_id = save_assessment(agency_info, assessment_data)
     
     # Send emails
-    eotss_sent = send_eotss_notification(agency_info, results_data, assessment_id)
-    confirmation_sent = send_agency_confirmation(agency_info['contact_email'], results_data)
+    eotss_sent = send_eotss_notification(agency_info, results_data, assessment_id, ticket_id)
+    confirmation_sent = send_agency_confirmation(agency_info['contact_email'], results_data, ticket_id)
     
     if eotss_sent and confirmation_sent:
         flash('Assessment submitted successfully! EOTSS has been notified and you will receive a confirmation email shortly.', 'success')
@@ -390,6 +416,27 @@ def submit_to_eotss():
         flash('There was an issue submitting your assessment. Please try again or contact EOTSS directly.', 'error')
     
     return redirect(url_for('index'))
+
+@app.route('/view/<ticket_id>')
+def view_assessment(ticket_id):
+    """
+    Display assessment results by ticket ID.
+    """
+    # Find assessment by ticket ID
+    assessment = None
+    if os.path.exists(DATA_DIR):
+        for filename in os.listdir(DATA_DIR):
+            if filename.endswith('.json') and ticket_id in filename:
+                assessment_file = os.path.join(DATA_DIR, filename)
+                with open(assessment_file, 'r') as f:
+                    assessment = json.load(f)
+                break
+    
+    if not assessment:
+        flash('Assessment not found.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('view_assessment.html', assessment=assessment)
 
 @app.route('/dashboard')
 def dashboard():
@@ -459,7 +506,8 @@ def process_review(assessment_id):
         # Send notification to agency
         agency_email = assessment['agency_info']['contact_email']
         agency_name = assessment['agency_info']['agency_name']
-        notification_sent = send_review_notification(agency_email, agency_name, decision, review_notes)
+        ticket_id = assessment['ticket_id']
+        notification_sent = send_review_notification(agency_email, agency_name, decision, ticket_id, review_notes)
         
         if notification_sent:
             flash(f'Assessment {decision}. Notification sent to agency.', 'success')

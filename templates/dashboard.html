@@ -51,6 +51,7 @@
                 <table class="w-full border-collapse border border-gray-300">
                     <thead>
                         <tr class="bg-gray-100">
+                            <th class="border border-gray-300 px-4 py-2 text-left">Ticket ID</th>
                             <th class="border border-gray-300 px-4 py-2 text-left">Agency</th>
                             <th class="border border-gray-300 px-4 py-2 text-left">Contact</th>
                             <th class="border border-gray-300 px-4 py-2 text-left">Recommendation</th>
@@ -62,6 +63,11 @@
                     <tbody>
                         {% for assessment in assessments %}
                         <tr class="hover:bg-gray-50">
+                            <td class="border border-gray-300 px-4 py-2">
+                                <a href="/view/{{ assessment.ticket_id }}" class="font-bold text-blue-600 font-mono hover:text-blue-800 hover:underline cursor-pointer">
+                                    #{{ assessment.ticket_id }}
+                                </a>
+                            </td>
                             <td class="border border-gray-300 px-4 py-2">
                                 <div class="font-semibold">{{ assessment.agency_info.agency_name }}</div>
                                 <div class="text-sm text-gray-600">{{ assessment.agency_info.department }}</div>

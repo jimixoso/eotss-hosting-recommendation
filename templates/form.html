@@ -34,6 +34,17 @@
         {% endwith %}
         
         <form method="post" class="space-y-6">
+            <!-- Progress Indicator -->
+            <div class="bg-blue-50 border border-blue-200 rounded p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-semibold text-blue-800">Assessment Progress</span>
+                    <span id="progress-text" class="text-sm text-blue-600">0% Complete</span>
+                </div>
+                <div class="w-full bg-blue-200 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+            
             <!-- Section I: Main Application Questions -->
             <div class="bg-blue-50 border border-blue-200 rounded p-6">
                 <h2 class="text-xl font-bold text-blue-900 mb-4 border-l-4 border-blue-800 pl-3">Section I: Application Requirements</h2>
@@ -74,17 +85,6 @@
                         {% endif %}
                     </div>
                     {% endfor %}
-                </div>
-            </div>
-            
-            <!-- Progress Indicator -->
-            <div class="bg-blue-50 border border-blue-200 rounded p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm font-semibold text-blue-800">Assessment Progress</span>
-                    <span id="progress-text" class="text-sm text-blue-600">0% Complete</span>
-                </div>
-                <div class="w-full bg-blue-200 rounded-full h-2">
-                    <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
                 </div>
             </div>
             

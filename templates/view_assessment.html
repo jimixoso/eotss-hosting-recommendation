@@ -2,15 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>EOTSS Assessment Review - {{ assessment.agency_info.agency_name }}</title>
+    <title>Assessment Results - #{{ assessment.ticket_id }} - EOTSS</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 flex items-center justify-center">
     <div class="w-full max-w-4xl bg-white rounded-lg shadow-xl p-8 my-8">
         <div class="border-b-2 border-blue-800 pb-4 mb-6">
-            <h1 class="text-2xl font-bold text-blue-900 text-center">EOTSS Assessment Review</h1>
-            <p class="text-center text-gray-600 mt-2">Executive Office of Technology Services and Security</p>
-            <p class="text-center text-gray-600">Commonwealth of Massachusetts</p>
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-2xl font-bold text-blue-900">Assessment Results</h1>
+                    <p class="text-gray-600 mt-1">Executive Office of Technology Services and Security</p>
+                    <p class="text-gray-600">Commonwealth of Massachusetts</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold text-blue-600 font-mono">#{{ assessment.ticket_id }}</div>
+                    <div class="text-sm text-gray-500">Ticket ID</div>
+                </div>
+            </div>
         </div>
         
         <!-- Flash Messages -->
@@ -49,8 +57,16 @@
                     <p class="text-gray-800">{{ assessment.submitted_at[:10] }}</p>
                 </div>
                 <div>
-                    <span class="font-semibold text-gray-700">Ticket ID:</span>
-                    <p class="text-gray-800 font-mono text-sm font-bold text-blue-600">#{{ assessment.ticket_id }}</p>
+                    <span class="font-semibold text-gray-700">Status:</span>
+                    <p class="text-gray-800">
+                        {% if assessment.status == 'pending' %}
+                            <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded text-sm font-semibold">Pending</span>
+                        {% elif assessment.status == 'approved' %}
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-semibold">Approved</span>
+                        {% elif assessment.status == 'rejected' %}
+                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-sm font-semibold">Rejected</span>
+                        {% endif %}
+                    </p>
                 </div>
             </div>
         </div>
@@ -101,56 +117,45 @@
             </div>
         </div>
         
-        <!-- Review Form -->
+        <!-- Review Information (if reviewed) -->
+        {% if assessment.status != 'pending' %}
         <div class="bg-yellow-50 border border-yellow-200 rounded p-6 mb-6">
-            <h2 class="text-xl font-bold text-blue-900 mb-4">Review Decision</h2>
-            
-            <form action="/process_review/{{ assessment.id }}" method="post">
-                <div class="mb-4">
-                    <label class="block font-semibold text-gray-800 mb-2">Decision:</label>
-                    <div class="flex gap-4">
-                        <label class="flex items-center">
-                            <input type="radio" name="decision" value="approved" class="mr-2" required>
-                            <span class="text-green-700 font-semibold">✅ Approve</span>
-                        </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="decision" value="rejected" class="mr-2" required>
-                            <span class="text-red-700 font-semibold">❌ Reject</span>
-                        </label>
-                    </div>
+            <h2 class="text-xl font-bold text-blue-900 mb-4">Review Information</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <span class="font-semibold text-gray-700">Reviewed At:</span>
+                    <p class="text-gray-800">{{ assessment.reviewed_at[:10] }}</p>
                 </div>
-                
-                <div class="mb-6">
-                    <label for="review_notes" class="block font-semibold text-gray-800 mb-2">Review Notes (Optional):</label>
-                    <textarea 
-                        name="review_notes" 
-                        id="review_notes" 
-                        rows="4" 
-                        class="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Add any comments, feedback, or additional requirements..."
-                    ></textarea>
+                <div>
+                    <span class="font-semibold text-gray-700">Decision:</span>
+                    <p class="text-gray-800">
+                        {% if assessment.status == 'approved' %}
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm font-semibold">Approved</span>
+                        {% elif assessment.status == 'rejected' %}
+                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded text-sm font-semibold">Rejected</span>
+                        {% endif %}
+                    </p>
                 </div>
-                
-                <div class="flex gap-4">
-                    <button type="submit" class="flex-1 py-3 bg-blue-800 text-white font-semibold rounded border-2 border-blue-900 hover:bg-blue-900 transition">
-                        📋 Submit Review Decision
-                    </button>
-                    <a href="/" class="flex-1 py-3 bg-gray-600 text-white font-semibold rounded border-2 border-gray-700 hover:bg-gray-700 transition text-center">
-                        ← Back to Home
-                    </a>
-                </div>
-            </form>
+            </div>
+            {% if assessment.review_notes %}
+            <div class="mt-4">
+                <span class="font-semibold text-gray-700">Review Notes:</span>
+                <p class="text-gray-800 mt-2">{{ assessment.review_notes }}</p>
+            </div>
+            {% endif %}
         </div>
+        {% endif %}
         
-        <!-- Review Guidelines -->
-        <div class="bg-blue-50 border border-blue-200 rounded p-4">
-            <h3 class="font-semibold text-blue-900 mb-2">Review Guidelines:</h3>
-            <ul class="list-disc list-inside text-sm text-gray-700 space-y-1">
-                <li><strong>Approve:</strong> Assessment is complete and recommendation is appropriate for the agency's needs.</li>
-                <li><strong>Reject:</strong> Assessment needs revision due to incomplete information, inappropriate recommendations, or compliance concerns.</li>
-                <li>Use review notes to provide specific feedback for rejected assessments.</li>
-                <li>Approved assessments will trigger follow-up from EOTSS within 1-2 business days.</li>
-            </ul>
+        <!-- Action Buttons -->
+        <div class="flex gap-4">
+            {% if assessment.status == 'pending' %}
+            <a href="/review/{{ assessment.id }}" class="flex-1 py-3 bg-blue-800 text-white font-semibold rounded border-2 border-blue-900 hover:bg-blue-900 transition text-center">
+                📋 Review Assessment
+            </a>
+            {% endif %}
+            <a href="/dashboard" class="flex-1 py-3 bg-gray-600 text-white font-semibold rounded border-2 border-gray-700 hover:bg-gray-700 transition text-center">
+                ← Back to Dashboard
+            </a>
         </div>
     </div>
 </body>
