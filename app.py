@@ -42,7 +42,7 @@ QUESTIONS = [
 CLOUD_READINESS_QUESTIONS = [
     {"key": "containerized", "prompt": "Is the app containerized or able to be containerized (e.g., Docker)?", "options": ["yes", "no"], "help": "Yes = can run in Docker or similar, No = needs special hardware or OS"},
     {"key": "compatible_runtime", "prompt": "Does the app run on a cloud-supported OS/runtime (e.g., modern Linux, Windows Server 2016+)?", "options": ["yes", "no"], "help": "Yes = runs on modern Linux/Windows, No = needs legacy OS"},
-    {"key": "no_hardware_deps", "prompt": "Does the app avoid relying on physical hardware or specialized networking?", "options": ["yes", "no"], "help": "Yes = no special cards/devices, No = needs hardware access"},
+    {"key": "no_hardware_deps", "prompt": "Does the app require physical hardware or specialized networking?", "options": ["yes", "no"], "help": "Yes = needs special cards/devices, No = runs on standard hardware"},
 ]
 
 def save_assessment(agency_info, assessment_data):
@@ -104,7 +104,17 @@ def score_answers(answers):
     Returns:
         tuple: (recommendation (str), scores (dict), explanations (list of str))
     """
-    cloud_ready_score = sum(1 for q in CLOUD_READINESS_QUESTIONS if answers.get(q["key"]) == "yes")
+    # Calculate cloud readiness score with reversed logic for hardware dependencies
+    cloud_ready_score = 0
+    for q in CLOUD_READINESS_QUESTIONS:
+        if q["key"] == "no_hardware_deps":
+            # For hardware question: "no" means cloud-ready (no hardware requirements)
+            if answers.get(q["key"]) == "no":
+                cloud_ready_score += 1
+        else:
+            # For other questions: "yes" means cloud-ready
+            if answers.get(q["key"]) == "yes":
+                cloud_ready_score += 1
     app_age = "modern" if cloud_ready_score >= 2 else "legacy"
     answers["app_age"] = app_age
     scores = {"aws": 0, "on_prem_cloud": 0, "physical": 0}

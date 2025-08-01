@@ -22,7 +22,7 @@ QUESTIONS = [
 CLOUD_READINESS_QUESTIONS = [
     {"key": "containerized", "prompt": "Is the app containerized or able to be containerized (e.g., Docker)? ", "options": ["yes", "no"], "help": "Yes = can run in Docker or similar, No = needs special hardware or OS"},
     {"key": "compatible_runtime", "prompt": "Does the app run on a cloud-supported OS/runtime (e.g., modern Linux, Windows Server 2016+)? ", "options": ["yes", "no"], "help": "Yes = runs on modern Linux/Windows, No = needs legacy OS"},
-    {"key": "no_hardware_deps", "prompt": "Does the app avoid relying on physical hardware or specialized networking? ", "options": ["yes", "no"], "help": "Yes = no special cards/devices, No = needs hardware access"},
+    {"key": "no_hardware_deps", "prompt": "Does the app require physical hardware or specialized networking? ", "options": ["yes", "no"], "help": "Yes = needs special cards/devices, No = runs on standard hardware"},
 ]
 
 def get_migration_complexity(answers):
@@ -118,8 +118,14 @@ def recommend_hosting():
                 print(f"  (Hint: {q['help']})")
             ans = get_valid_input(q["prompt"], q["options"])
         answers[q["key"]] = ans
-        if ans == "yes":
-            cloud_ready_score += 1
+        # For the first two questions, "yes" means cloud-ready
+        # For the third question (no_hardware_deps), "no" means cloud-ready (reversed logic)
+        if q["key"] == "no_hardware_deps":
+            if ans == "no":  # No hardware requirements = cloud-ready
+                cloud_ready_score += 1
+        else:
+            if ans == "yes":  # Yes to containerized/compatible = cloud-ready
+                cloud_ready_score += 1
     app_age = "modern" if cloud_ready_score >= 2 else "legacy"
     answers["app_age"] = app_age
 
@@ -394,8 +400,17 @@ def run_gui():
             if not answers[q["key"]]:
                 messagebox.showerror("Missing Input", f"Please answer: {q['prompt']}")
                 return
-        # Compute cloud readiness
-        cloud_ready_score = sum(1 for q in CLOUD_READINESS_QUESTIONS if answers[q["key"]] == "yes")
+        # Compute cloud readiness with reversed logic for hardware dependencies
+        cloud_ready_score = 0
+        for q in CLOUD_READINESS_QUESTIONS:
+            if q["key"] == "no_hardware_deps":
+                # For hardware question: "no" means cloud-ready (no hardware requirements)
+                if answers[q["key"]] == "no":
+                    cloud_ready_score += 1
+            else:
+                # For other questions: "yes" means cloud-ready
+                if answers[q["key"]] == "yes":
+                    cloud_ready_score += 1
         app_age = "modern" if cloud_ready_score >= 2 else "legacy"
         answers["app_age"] = app_age
         # Scoring logic (same as CLI)
