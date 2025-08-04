@@ -1,2 +1,4 @@
-flask
-flask-mail 
+flask==2.3.3
+flask-mail==0.9.1
+gunicorn==21.2.0
+python-dotenv==1.0.0 

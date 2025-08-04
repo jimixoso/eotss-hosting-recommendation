@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eotss-hosting-app
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY}
+      - MAIL_SERVER=${MAIL_SERVER}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USE_TLS=${MAIL_USE_TLS}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER}
+      - EOTSS_EMAIL=${EOTSS_EMAIL}
+      - DATA_DIR=/app/assessment_data
+    volumes:
+      - assessment_data:/app/assessment_data
+    networks:
+      - eotss-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nginx:
+    image: nginx:alpine
+    container_name: eotss-hosting-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
+    networks:
+      - eotss-network
+
+volumes:
+  assessment_data:
+    driver: local
+
+networks:
+  eotss-network:
+    driver: bridge 

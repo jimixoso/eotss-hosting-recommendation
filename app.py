@@ -6,22 +6,24 @@ from datetime import datetime
 import os
 import random
 import string
+import logging
+from config import config
 
+# Get configuration based on environment
+config_name = os.environ.get('FLASK_ENV', 'development')
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'demo-secret-key-12345'  # Change this in production
+app.config.from_object(config[config_name])
 
-# Email configuration for demo
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'jimixoso@gmail.com'  # Replace with your email
-app.config['MAIL_PASSWORD'] = 'zxpe jbvo ntqy xtme'     # Replace with your app password
-app.config['MAIL_DEFAULT_SENDER'] = 'jimixoso@gmail.com'
+# Set up logging
+logging.basicConfig(
+    level=getattr(logging, app.config['LOG_LEVEL']),
+    format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+)
 
 mail = Mail(app)
 
 # Create data directory if it doesn't exist
-DATA_DIR = 'assessment_data'
+DATA_DIR = app.config['DATA_DIR']
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
@@ -94,7 +96,7 @@ def load_assessment(assessment_id):
                     return json.load(f)
     return None
 
-def update_assessment_status(assessment_id, status, review_notes=""):
+def update_assessment_status(assessment_id, status, review_notes="", override_reason=""):
     """
     Update assessment status and add review notes.
     """
@@ -109,6 +111,8 @@ def update_assessment_status(assessment_id, status, review_notes=""):
                 assessment["status"] = status
                 assessment["reviewed_at"] = datetime.now().isoformat()
                 assessment["review_notes"] = review_notes
+                if override_reason:
+                    assessment["override_reason"] = override_reason
                 
                 with open(assessment_file, 'w') as f:
                     json.dump(assessment, f, indent=2)
@@ -200,7 +204,7 @@ def send_eotss_notification(agency_info, results_data, assessment_id, ticket_id)
         
         msg = Message(
             subject=f"EOTSS Hosting Assessment #{ticket_id} - {agency_info['agency_name']} - {results_data['date']}",
-            recipients=['jimixoso@mit.edu'],#Replace with EOTSS recipient email
+            recipients=[app.config['EOTSS_EMAIL']],
             body=f"""
 Dear EOTSS Team,
 
@@ -302,13 +306,27 @@ EOTSS Hosting Recommendation System
         print(f"Error sending confirmation email: {e}")
         return False
 
-def send_review_notification(agency_email, agency_name, status, ticket_id, review_notes=""):
+def send_review_notification(agency_email, agency_name, status, ticket_id, review_notes="", override_reason=""):
     """
     Send notification to agency about review decision.
     """
     try:
-        status_text = "APPROVED" if status == "approved" else "REJECTED"
-        subject = f"EOTSS Assessment #{ticket_id} {status_text} - {agency_name}"
+        if status == "approved":
+            status_text = "APPROVED"
+            subject = f"EOTSS Assessment #{ticket_id} {status_text} - {agency_name}"
+        else:
+            status_text = "OVERRIDDEN"
+            subject = f"EOTSS Assessment #{ticket_id} {status_text} - {agency_name}"
+        
+        # Format override reason for display
+        override_reason_display = ""
+        if override_reason:
+            reason_map = {
+                "aws": "AWS",
+                "on_prem_cloud": "On-Premises Cloud", 
+                "physical": "Physical Infrastructure"
+            }
+            override_reason_display = f"ALTERNATIVE RECOMMENDATION: {reason_map.get(override_reason, override_reason.upper())}\n\n"
         
         msg = Message(
             subject=subject,
@@ -321,11 +339,11 @@ Your EOTSS Hosting Assessment has been reviewed.
 TICKET ID: #{ticket_id}
 DECISION: {status_text}
 
-{f"REVIEW NOTES: {review_notes}" if review_notes else ""}
+{override_reason_display}{f"REVIEW NOTES: {review_notes}" if review_notes else ""}
 
 Next Steps:
 - If APPROVED: EOTSS will contact you within 1-2 business days to begin implementation planning.
-- If REJECTED: Please review the feedback and resubmit your assessment with any necessary changes.
+- If OVERRIDDEN: EOTSS has selected an alternative hosting option based on additional considerations.
 
 If you have any questions, please contact EOTSS directly.
 
@@ -493,21 +511,31 @@ def process_review(assessment_id):
     
     # Get review decision
     decision = request.form.get('decision')
+    override_reason = request.form.get('override_reason', '')
     review_notes = request.form.get('review_notes', '')
     
-    if decision not in ['approved', 'rejected']:
+    if decision not in ['approved', 'overridden']:
         flash('Invalid decision.', 'error')
         return redirect(url_for('review_assessment', assessment_id=assessment_id))
     
+    # Validate override requirements
+    if decision == 'overridden':
+        if not override_reason:
+            flash('Please select an alternative recommendation.', 'error')
+            return redirect(url_for('review_assessment', assessment_id=assessment_id))
+        if not review_notes.strip():
+            flash('Please provide review notes when overriding the system recommendation.', 'error')
+            return redirect(url_for('review_assessment', assessment_id=assessment_id))
+    
     # Update assessment status
-    success = update_assessment_status(assessment_id, decision, review_notes)
+    success = update_assessment_status(assessment_id, decision, review_notes, override_reason)
     
     if success:
         # Send notification to agency
         agency_email = assessment['agency_info']['contact_email']
         agency_name = assessment['agency_info']['agency_name']
         ticket_id = assessment['ticket_id']
-        notification_sent = send_review_notification(agency_email, agency_name, decision, ticket_id, review_notes)
+        notification_sent = send_review_notification(agency_email, agency_name, decision, ticket_id, review_notes, override_reason)
         
         if notification_sent:
             flash(f'Assessment {decision}. Notification sent to agency.', 'success')

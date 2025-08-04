@@ -137,6 +137,19 @@
                     </p>
                 </div>
             </div>
+            {% if assessment.override_reason %}
+            <div class="mt-4">
+                <span class="font-semibold text-gray-700">Alternative Recommendation:</span>
+                <p class="text-gray-800 mt-2">
+                    {% set reason_map = {
+                        "aws": "AWS",
+                        "on_prem_cloud": "On-Premises Cloud",
+                        "physical": "Physical Infrastructure"
+                    } %}
+                    {{ reason_map.get(assessment.override_reason, assessment.override_reason.upper()) }}
+                </p>
+            </div>
+            {% endif %}
             {% if assessment.review_notes %}
             <div class="mt-4">
                 <span class="font-semibold text-gray-700">Review Notes:</span>

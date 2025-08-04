@@ -110,18 +110,29 @@
                     <label class="block font-semibold text-gray-800 mb-2">Decision:</label>
                     <div class="flex gap-4">
                         <label class="flex items-center">
-                            <input type="radio" name="decision" value="approved" class="mr-2" required>
+                            <input type="radio" name="decision" value="approved" class="mr-2" required onchange="toggleRejectionReason()">
                             <span class="text-green-700 font-semibold">✅ Approve</span>
                         </label>
                         <label class="flex items-center">
-                            <input type="radio" name="decision" value="rejected" class="mr-2" required>
-                            <span class="text-red-700 font-semibold">❌ Reject</span>
+                            <input type="radio" name="decision" value="overridden" class="mr-2" required onchange="toggleOverrideReason()">
+                            <span class="text-orange-700 font-semibold">🔄 Override</span>
                         </label>
                     </div>
                 </div>
                 
+                <!-- Override Reason Dropdown (hidden by default) -->
+                <div id="override-reason-section" class="mb-4 hidden">
+                    <label for="override_reason" class="block font-semibold text-gray-800 mb-2">Alternative Recommendation:</label>
+                    <select name="override_reason" id="override_reason" class="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
+                        <option value="">Select alternative...</option>
+                        <!-- Options will be populated by JavaScript based on current recommendation -->
+                    </select>
+                </div>
+                
                 <div class="mb-6">
-                    <label for="review_notes" class="block font-semibold text-gray-800 mb-2">Review Notes (Optional):</label>
+                    <label for="review_notes" class="block font-semibold text-gray-800 mb-2">
+                        <span id="notes-label">Review Notes (Optional):</span>
+                    </label>
                     <textarea 
                         name="review_notes" 
                         id="review_notes" 
@@ -129,6 +140,7 @@
                         class="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Add any comments, feedback, or additional requirements..."
                     ></textarea>
+                    <p id="notes-required" class="text-orange-600 text-sm mt-1 hidden">Review notes are required when overriding the system recommendation.</p>
                 </div>
                 
                 <div class="flex gap-4">
@@ -153,5 +165,87 @@
             </ul>
         </div>
     </div>
+
+    <script>
+        // Get the current recommendation from the page
+        const currentRecommendation = '{{ assessment.recommendation }}';
+        
+        function populateOverrideOptions() {
+            const overrideSelect = document.getElementById('override_reason');
+            const allOptions = ['aws', 'on_prem_cloud', 'physical'];
+            const alternativeOptions = allOptions.filter(option => option !== currentRecommendation);
+            
+            // Clear existing options except the first one
+            overrideSelect.innerHTML = '<option value="">Select alternative...</option>';
+            
+            // Add alternative options
+            alternativeOptions.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option.replace('_', ' ').toUpperCase();
+                overrideSelect.appendChild(optionElement);
+            });
+        }
+        
+        function toggleOverrideReason() {
+            const decision = document.querySelector('input[name="decision"]:checked').value;
+            const overrideSection = document.getElementById('override-reason-section');
+            const notesLabel = document.getElementById('notes-label');
+            const notesRequired = document.getElementById('notes-required');
+            const reviewNotes = document.getElementById('review_notes');
+            const overrideReason = document.getElementById('override_reason');
+            
+            if (decision === 'overridden') {
+                // Show override reason dropdown
+                overrideSection.classList.remove('hidden');
+                overrideReason.required = true;
+                
+                // Populate the dropdown with alternative options
+                populateOverrideOptions();
+                
+                // Make notes required
+                notesLabel.textContent = 'Review Notes (Required):';
+                notesRequired.classList.remove('hidden');
+                reviewNotes.required = true;
+                reviewNotes.classList.add('border-orange-300');
+                reviewNotes.classList.remove('border-gray-300');
+            } else {
+                // Hide override reason dropdown
+                overrideSection.classList.add('hidden');
+                overrideReason.required = false;
+                overrideReason.value = '';
+                
+                // Make notes optional
+                notesLabel.textContent = 'Review Notes (Optional):';
+                notesRequired.classList.add('hidden');
+                reviewNotes.required = false;
+                reviewNotes.classList.remove('border-orange-300');
+                reviewNotes.classList.add('border-gray-300');
+            }
+        }
+        
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const decision = document.querySelector('input[name="decision"]:checked').value;
+            const overrideReason = document.getElementById('override_reason');
+            const reviewNotes = document.getElementById('review_notes');
+            
+            if (decision === 'overridden') {
+                if (!overrideReason.value) {
+                    e.preventDefault();
+                    alert('Please select an alternative recommendation.');
+                    overrideReason.focus();
+                    return;
+                }
+                
+                if (!reviewNotes.value.trim()) {
+                    e.preventDefault();
+                    alert('Please provide review notes when overriding the system recommendation.');
+                    reviewNotes.focus();
+                    return;
+                }
+            }
+        });
+    </script>
 </body>
 </html> 
