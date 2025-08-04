@@ -13,13 +13,13 @@ A comprehensive hosting recommendation system for the Executive Office of Techno
 ### Email Automation (Version 2)
 - **Automated EOTSS Notifications**: Sends assessment results to EOTSS for review
 - **Agency Confirmations**: Confirms submission to agencies
-- **Review System**: EOTSS can approve/reject assessments with feedback
+- **Review System**: EOTSS can approve/override assessments with feedback
 - **Status Tracking**: Complete workflow from submission to approval
 - **Professional Email Templates**: Government-appropriate formatting
 
 ### Management Features
 - **Assessment Dashboard**: View all submissions and their status
-- **Review Interface**: Professional form for EOTSS to approve/reject assessments
+- **Review Interface**: Professional form for EOTSS to approve/override assessments
 - **File-based Storage**: Simple JSON storage for assessments (no database required)
 - **Unique Assessment IDs**: Each submission gets a unique identifier
 
@@ -80,12 +80,12 @@ A comprehensive hosting recommendation system for the Executive Office of Techno
 2. **EOTSS Review**:
    - EOTSS receives email with assessment details and review link
    - EOTSS clicks link to access review form
-   - EOTSS can approve or reject with optional comments
+   - EOTSS can approve or override with optional comments
    - Agency receives notification of decision
 
 3. **Management**:
    - Use dashboard to view all assessments
-   - Track status (pending/approved/rejected)
+   - Track status (pending/approved/overridden)
    - Access review forms for pending assessments
 
 ### CLI/GUI Tool
