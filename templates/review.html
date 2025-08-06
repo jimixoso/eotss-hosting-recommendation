@@ -8,9 +8,18 @@
 <body class="min-h-screen bg-gradient-to-br from-slate-700 via-slate-800 to-slate-900 flex items-center justify-center">
     <div class="w-full max-w-4xl bg-white rounded-lg shadow-xl p-8 my-8">
         <div class="border-b-2 border-blue-800 pb-4 mb-6">
-            <h1 class="text-2xl font-bold text-blue-900 text-center">EOTSS Assessment Review</h1>
+            <h1 class="text-2xl font-bold text-blue-900 text-center">
+                {% if edit_mode %}
+                    Edit Assessment Review
+                {% else %}
+                    EOTSS Assessment Review
+                {% endif %}
+            </h1>
             <p class="text-center text-gray-600 mt-2">Executive Office of Technology Services and Security</p>
             <p class="text-center text-gray-600">Commonwealth of Massachusetts</p>
+            {% if edit_mode %}
+                <p class="text-center text-orange-600 mt-2 font-semibold">⚠️ Editing existing review - notification has not been sent yet</p>
+            {% endif %}
         </div>
         
         <!-- Flash Messages -->
@@ -110,11 +119,11 @@
                     <label class="block font-semibold text-gray-800 mb-2">Decision:</label>
                     <div class="flex gap-4">
                         <label class="flex items-center">
-                            <input type="radio" name="decision" value="approved" class="mr-2" required onchange="toggleRejectionReason()">
+                            <input type="radio" name="decision" value="approved" class="mr-2" required onchange="toggleOverrideReason()" {% if edit_mode and assessment.status == 'approved' %}checked{% endif %}>
                             <span class="text-green-700 font-semibold">✅ Approve</span>
                         </label>
                         <label class="flex items-center">
-                            <input type="radio" name="decision" value="overridden" class="mr-2" required onchange="toggleOverrideReason()">
+                            <input type="radio" name="decision" value="overridden" class="mr-2" required onchange="toggleOverrideReason()" {% if edit_mode and assessment.status == 'overridden' %}checked{% endif %}>
                             <span class="text-orange-700 font-semibold">🔄 Override</span>
                         </label>
                     </div>
@@ -139,7 +148,7 @@
                         rows="4" 
                         class="w-full p-3 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         placeholder="Add any comments, feedback, or additional requirements..."
-                    ></textarea>
+                    >{% if edit_mode %}{{ assessment.review_notes }}{% endif %}</textarea>
                     <p id="notes-required" class="text-orange-600 text-sm mt-1 hidden">Review notes are required when overriding the system recommendation.</p>
                 </div>
                 
@@ -169,6 +178,8 @@
     <script>
         // Get the current recommendation from the page
         const currentRecommendation = '{{ assessment.recommendation }}';
+        const editMode = {% if edit_mode %}true{% else %}false{% endif %};
+        const currentOverrideReason = '{{ assessment.override_reason if edit_mode else "" }}';
         
         function populateOverrideOptions() {
             const overrideSelect = document.getElementById('override_reason');
@@ -183,6 +194,10 @@
                 const optionElement = document.createElement('option');
                 optionElement.value = option;
                 optionElement.textContent = option.replace('_', ' ').toUpperCase();
+                // Pre-select if in edit mode and this was the previous choice
+                if (editMode && option === currentOverrideReason) {
+                    optionElement.selected = true;
+                }
                 overrideSelect.appendChild(optionElement);
             });
         }
@@ -244,8 +259,19 @@
                     reviewNotes.focus();
                     return;
                 }
-            }
-        });
-    </script>
+                         }
+         });
+         
+         // Initialize form state on page load for edit mode
+         document.addEventListener('DOMContentLoaded', function() {
+             if (editMode) {
+                 // Trigger the toggle function to show/hide override section based on current status
+                 const checkedRadio = document.querySelector('input[name="decision"]:checked');
+                 if (checkedRadio) {
+                     toggleOverrideReason();
+                 }
+             }
+         });
+     </script>
 </body>
 </html> 

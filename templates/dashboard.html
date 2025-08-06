@@ -26,7 +26,7 @@
             {% endwith %}
             
             <!-- Statistics -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
                 <div class="bg-blue-50 border border-blue-200 rounded p-4 text-center">
                     <div class="text-2xl font-bold text-blue-800">{{ assessments|length }}</div>
                     <div class="text-sm text-gray-600">Total Assessments</div>
@@ -35,13 +35,41 @@
                     <div class="text-2xl font-bold text-yellow-800">{{ assessments|selectattr('status', 'equalto', 'pending')|list|length }}</div>
                     <div class="text-sm text-gray-600">Pending Review</div>
                 </div>
+                <div class="bg-purple-50 border border-purple-200 rounded p-4 text-center">
+                    <div class="text-2xl font-bold text-purple-800">
+                        {% set reviewed_awaiting = [] %}
+                        {% for assessment in assessments %}
+                            {% if assessment.status != 'pending' and not assessment.get('notification_sent', false) %}
+                                {% set _ = reviewed_awaiting.append(assessment) %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ reviewed_awaiting|length }}
+                    </div>
+                    <div class="text-sm text-gray-600">Reviewed (Awaiting Notification)</div>
+                </div>
                 <div class="bg-green-50 border border-green-200 rounded p-4 text-center">
-                    <div class="text-2xl font-bold text-green-800">{{ assessments|selectattr('status', 'equalto', 'approved')|list|length }}</div>
-                    <div class="text-sm text-gray-600">Approved</div>
+                    <div class="text-2xl font-bold text-green-800">
+                        {% set approved_notified = [] %}
+                        {% for assessment in assessments %}
+                            {% if assessment.get('notification_sent', false) and assessment.status == 'approved' %}
+                                {% set _ = approved_notified.append(assessment) %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ approved_notified|length }}
+                    </div>
+                    <div class="text-sm text-gray-600">Approved & Notified</div>
                 </div>
                 <div class="bg-orange-50 border border-orange-200 rounded p-4 text-center">
-                    <div class="text-2xl font-bold text-orange-800">{{ assessments|selectattr('status', 'equalto', 'overridden')|list|length }}</div>
-                    <div class="text-sm text-gray-600">Overridden</div>
+                    <div class="text-2xl font-bold text-orange-800">
+                        {% set overridden_notified = [] %}
+                        {% for assessment in assessments %}
+                            {% if assessment.get('notification_sent', false) and assessment.status == 'overridden' %}
+                                {% set _ = overridden_notified.append(assessment) %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ overridden_notified|length }}
+                    </div>
+                    <div class="text-sm text-gray-600">Overridden & Notified</div>
                 </div>
             </div>
             
@@ -110,11 +138,29 @@
                                         Review
                                     </a>
                                 {% else %}
-                                    <span class="text-gray-500 text-sm">Reviewed</span>
-                                    {% if assessment.review_notes %}
-                                        <div class="text-xs text-gray-600 mt-1">
-                                            <strong>Notes:</strong> {{ assessment.review_notes[:50] }}{% if assessment.review_notes|length > 50 %}...{% endif %}
+                                    {% if assessment.get('notification_sent', false) %}
+                                        <span class="text-green-600 text-sm font-semibold">✓ Notified</span>
+                                        {% if assessment.review_notes %}
+                                            <div class="text-xs text-gray-600 mt-1">
+                                                <strong>Notes:</strong> {{ assessment.review_notes[:50] }}{% if assessment.review_notes|length > 50 %}...{% endif %}
+                                            </div>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="flex flex-col gap-1">
+                                            <form method="POST" action="/send_notification/{{ assessment.id }}" style="display: inline;">
+                                                <button type="submit" class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition w-full">
+                                                    Send Notification
+                                                </button>
+                                            </form>
+                                            <a href="/edit_review/{{ assessment.id }}" class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition block text-center w-full">
+                                                Edit
+                                            </a>
                                         </div>
+                                        {% if assessment.review_notes %}
+                                            <div class="text-xs text-gray-600 mt-1">
+                                                <strong>Notes:</strong> {{ assessment.review_notes[:50] }}{% if assessment.review_notes|length > 50 %}...{% endif %}
+                                            </div>
+                                        {% endif %}
                                     {% endif %}
                                 {% endif %}
                             </td>

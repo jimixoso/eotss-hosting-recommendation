@@ -111,6 +111,7 @@ def update_assessment_status(assessment_id, status, review_notes="", override_re
                 assessment["status"] = status
                 assessment["reviewed_at"] = datetime.now().isoformat()
                 assessment["review_notes"] = review_notes
+                assessment["notification_sent"] = False  # Track if notification email has been sent
                 if override_reason:
                     assessment["override_reason"] = override_reason
                 
@@ -527,24 +528,91 @@ def process_review(assessment_id):
             flash('Please provide review notes when overriding the system recommendation.', 'error')
             return redirect(url_for('review_assessment', assessment_id=assessment_id))
     
-    # Update assessment status
+    # Update assessment status (without sending email)
     success = update_assessment_status(assessment_id, decision, review_notes, override_reason)
     
     if success:
-        # Send notification to agency
-        agency_email = assessment['agency_info']['contact_email']
-        agency_name = assessment['agency_info']['agency_name']
-        ticket_id = assessment['ticket_id']
-        notification_sent = send_review_notification(agency_email, agency_name, decision, ticket_id, review_notes, override_reason)
-        
-        if notification_sent:
-            flash(f'Assessment {decision}. Notification sent to agency.', 'success')
-        else:
-            flash(f'Assessment {decision}, but there was an issue sending the notification email.', 'warning')
+        flash(f'Assessment {decision}. You can now send the notification to the agency from the dashboard.', 'success')
     else:
         flash('Error updating assessment status.', 'error')
     
-    return redirect(url_for('index'))
+    return redirect(url_for('dashboard'))
+
+@app.route('/send_notification/<assessment_id>', methods=['POST'])
+def send_notification(assessment_id):
+    """
+    Send notification email to agency for a reviewed assessment.
+    """
+    assessment = load_assessment(assessment_id)
+    if not assessment:
+        flash('Assessment not found.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if assessment['status'] == 'pending':
+        flash('Assessment must be reviewed before sending notification.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if assessment.get('notification_sent', False):
+        flash('Notification has already been sent for this assessment.', 'info')
+        return redirect(url_for('dashboard'))
+    
+    # Send notification to agency
+    agency_email = assessment['agency_info']['contact_email']
+    agency_name = assessment['agency_info']['agency_name']
+    ticket_id = assessment['ticket_id']
+    review_notes = assessment.get('review_notes', '')
+    override_reason = assessment.get('override_reason', '')
+    
+    notification_sent = send_review_notification(agency_email, agency_name, assessment['status'], ticket_id, review_notes, override_reason)
+    
+    if notification_sent:
+        # Mark notification as sent
+        mark_notification_sent(assessment_id)
+        flash(f'Notification sent successfully to {agency_name}.', 'success')
+    else:
+        flash('Failed to send notification email.', 'error')
+    
+    return redirect(url_for('dashboard'))
+
+def mark_notification_sent(assessment_id):
+    """
+    Mark that notification email has been sent for an assessment.
+    """
+    if os.path.exists(DATA_DIR):
+        for filename in os.listdir(DATA_DIR):
+            if filename.endswith('.json') and assessment_id in filename:
+                assessment_file = os.path.join(DATA_DIR, filename)
+                with open(assessment_file, 'r') as f:
+                    assessment = json.load(f)
+                
+                assessment["notification_sent"] = True
+                assessment["notification_sent_at"] = datetime.now().isoformat()
+                
+                with open(assessment_file, 'w') as f:
+                    json.dump(assessment, f, indent=2)
+                
+                return True
+    return False
+
+@app.route('/edit_review/<assessment_id>')
+def edit_review(assessment_id):
+    """
+    Allow editing review decision before notification is sent.
+    """
+    assessment = load_assessment(assessment_id)
+    if not assessment:
+        flash('Assessment not found.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if assessment['status'] == 'pending':
+        flash('Assessment has not been reviewed yet.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    if assessment.get('notification_sent', False):
+        flash('Cannot edit review after notification has been sent.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('review.html', assessment=assessment, edit_mode=True)
 
 if __name__ == '__main__':
     app.run(debug=True) 
